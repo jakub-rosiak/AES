@@ -210,14 +210,12 @@ public class Aes {
         for (int i = 0; i < hex.length(); i+=2) {
             intArray[i/2] = Integer.parseInt(hex.substring(i, i+2), 16);
         }
-        //System.out.println(Arrays.toString(intArray));
         return intArray;
     }
 
     static String toUtf8String(List<int[][]> intArray) {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
 
-        // Extract all bytes from the blocks
         for (int[][] block : intArray) {
             for (int[] row : block) {
                 for (int val : row) {
@@ -229,14 +227,10 @@ public class Aes {
 
         byte[] rawBytes = baos.toByteArray();
 
-        // Handle PKCS#7 padding (if used)
-        // Check if the last byte indicates padding length
         if (rawBytes.length > 0) {
             int paddingLength = rawBytes[rawBytes.length - 1] & 0xFF;
 
-            // Validate padding (PKCS#7 padding value should be between 1 and 16)
             if (paddingLength > 0 && paddingLength <= 16) {
-                // Verify that all padding bytes have the same value
                 boolean validPadding = true;
                 for (int i = rawBytes.length - paddingLength; i < rawBytes.length; i++) {
                     if ((rawBytes[i] & 0xFF) != paddingLength) {
@@ -245,7 +239,6 @@ public class Aes {
                     }
                 }
 
-                // If valid padding is detected, remove it
                 if (validPadding) {
                     rawBytes = Arrays.copyOfRange(rawBytes, 0, rawBytes.length - paddingLength);
                 }
@@ -363,20 +356,16 @@ public class Aes {
     static int[][] shiftRows(int[][] state) {
         int[][] newState = new int[4][4];
 
-        // Row 0 remains unchanged
         System.arraycopy(state[0], 0, newState[0], 0, 4);
 
-        // Row 1 shifts left by 1
         for (int j = 0; j < 4; j++) {
             newState[1][j] = state[1][(j + 1) % 4];
         }
 
-        // Row 2 shifts left by 2
         for (int j = 0; j < 4; j++) {
             newState[2][j] = state[2][(j + 2) % 4];
         }
 
-        // Row 3 shifts left by 3
         for (int j = 0; j < 4; j++) {
             newState[3][j] = state[3][(j + 3) % 4];
         }
@@ -387,20 +376,16 @@ public class Aes {
     static int[][] invShiftRows(int[][] state) {
         int[][] newState = new int[4][4];
 
-        // Row 0 remains unchanged
         System.arraycopy(state[0], 0, newState[0], 0, 4);
 
-        // Row 1 shifts right by 1
         for (int j = 0; j < 4; j++) {
             newState[1][j] = state[1][(j - 1 + 4) % 4];
         }
 
-        // Row 2 shifts right by 2
         for (int j = 0; j < 4; j++) {
             newState[2][j] = state[2][(j - 2 + 4) % 4];
         }
 
-        // Row 3 shifts right by 3
         for (int j = 0; j < 4; j++) {
             newState[3][j] = state[3][(j - 3 + 4) % 4];
         }
@@ -410,17 +395,14 @@ public class Aes {
 
 
     static int[][] mixColumns(int[][] state) {
-        // Create a new state matrix to store the transformed state
         int[][] newState = new int[4][4];
 
         for (int c = 0; c < 4; c++) {
-            // Create a temporary column
             int[] column = new int[4];
             for (int r = 0; r < 4; r++) {
                 column[r] = state[r][c];
             }
 
-            // Perform the MixColumns transformation
             for (int r = 0; r < 4; r++) {
                 int newValue = 0;
                 for (int k = 0; k < 4; k++) {
@@ -430,20 +412,18 @@ public class Aes {
             }
         }
 
-        return newState; // Return the transformed state
+        return newState;
     }
 
     static int[][] invMixColumns(int[][] state) {
         int[][] newState = new int[4][4];
 
         for (int c = 0; c < 4; c++) {
-            // Extract the column from the state
             int[] column = new int[4];
             for (int r = 0; r < 4; r++) {
                 column[r] = state[r][c];
             }
 
-            // Perform the inverse MixColumns transformation
             for (int r = 0; r < 4; r++) {
                 int newValue = 0;
                 for (int k = 0; k < 4; k++) {
@@ -466,13 +446,12 @@ public class Aes {
             boolean highBitSet = (a & 0x80) == 0x80;
             a <<= 1;
             if (highBitSet) {
-                a ^= 0x1b; // AES modulus (x^8 + x^4 + x^3 + x + 1)
+                a ^= 0x1b;
             }
             b >>= 1;
         }
-        return p & 0xFF; // Return result modulo 256
+        return p & 0xFF;
     }
-
 
     static int[][] addRoundKey(int[][] state, int[][] roundKey) {
         int[][] newState = new int[4][4];

@@ -2,7 +2,6 @@ package pl.jrkm.ui;
 
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
-import javafx.scene.control.Label;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.stage.FileChooser;
@@ -12,6 +11,8 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 public class Controller {
 
@@ -45,24 +46,30 @@ public class Controller {
         fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Text Files", "*.txt"));
         File file = fileChooser.showOpenDialog(null);
         if (file != null) {
-            String fileContent = readFile(file);
-            leftTextArea.setText(fileContent);
+            List<String> fileContent = readFile(file);
+            keyField.setText(fileContent.getFirst());
+            leftTextArea.setText(fileContent.getLast());
         }
+        handleEncrypt(actionEvent);
     }
 
-    private String readFile(File file) {
+    private List<String> readFile(File file) {
         StringBuilder content = new StringBuilder();
-
+        String key = "";
         try (BufferedReader br = new BufferedReader(new FileReader(file))) {
-            String line;
+            String line = br.readLine();
+            if (line == null) return null;
+            key = line.trim();
             while ((line = br.readLine()) != null) {
-                content.append(line).append("\n");
+                content.append(line.trim());
             }
         } catch (IOException e) {
             e.printStackTrace();
         }
-
-        return content.toString();
+        List<String> fileVals = new ArrayList<>();
+        fileVals.add(key);
+        fileVals.add(content.toString());
+        return fileVals;
     }
 
     public void handleDecryptFile(ActionEvent actionEvent) {
@@ -71,11 +78,10 @@ public class Controller {
         fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Text Files", "*.txt"));
         File file = fileChooser.showOpenDialog(null);
         if (file != null) {
-            String fileContent = readFile(file);
-            RightTextArea.setText(fileContent);
+            List<String> fileContent = readFile(file);
+            keyField.setText(fileContent.getFirst());
+            RightTextArea.setText(fileContent.getLast());
         }
-    }
-
-    public void handleClear(ActionEvent actionEvent) {
+        handleDecrypt(actionEvent);
     }
 }
