@@ -80,9 +80,7 @@ public class Aes {
         0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1B, 0x36
     };
 
-    public static String decrypt(String encrypted, String key) {
-        int[] keyInts = stringToHexArray(key);
-        int[] encryptedInts = stringToHexArray(encrypted);
+    public static int[] decrypt(int[] encryptedInts, int[] keyInts) {
         List<int[][]> blocks = new ArrayList<>();
         List<int[][]> decryptedBlocks = new ArrayList<>();
 
@@ -92,12 +90,17 @@ public class Aes {
 
             for (int row = 0; row < 4; row++) {
                 for (int col = 0; col < 4; col++) {
-                    block[row][col] = encryptedInts[counter];
-                    counter++;
+                    if (counter < encryptedInts.length) {
+                        block[row][col] = encryptedInts[counter];
+                        counter++;
+                    } else {
+                        block[row][col] = 0;
+                    }
                 }
             }
             blocks.add(block);
         }
+
         int rounds;
         switch (keyInts.length) {
             case 16 -> rounds = 9;
@@ -133,29 +136,35 @@ public class Aes {
             decryptedBlocks.add(block);
         });
 
-        return toUtf8String(decryptedBlocks);
+        int totalSize = decryptedBlocks.size() * 16;
+        int[] result = new int[totalSize];
+        int index = 0;
+
+        for (int[][] block : decryptedBlocks) {
+            for (int row = 0; row < 4; row++) {
+                for (int col = 0; col < 4; col++) {
+                    if (index < result.length) {
+                        result[index++] = block[row][col];
+                    }
+                }
+            }
+        }
+
+        return result;
     }
 
-    public static String encrypt(String plainText, String key) {
-        byte[] plainTextBytes = plainText.getBytes(StandardCharsets.UTF_8);
-        int[] keyInts = stringToHexArray(key);
-        int[] plainTextInts = new int[plainTextBytes.length];
+    public static int[] encrypt(int[] plainText, int[] key) {
         List<int[][]> blocks = new ArrayList<>();
         List<int[][]> encryptedBlocks = new ArrayList<>();
 
-
-        for (int i = 0; i < plainTextBytes.length; i++) {
-            plainTextInts[i] = plainTextBytes[i] & 0xFF;
-        }
-
         int counter = 0;
-        while (counter < plainTextInts.length) {
+        while (counter < plainText.length) {
             int[][] block = new int[4][4];
 
             for (int row = 0; row < 4; row++) {
                 for (int col = 0; col < 4; col++) {
-                    if (counter < plainTextInts.length) {
-                        block[row][col] = plainTextInts[counter];
+                    if (counter < plainText.length) {
+                        block[row][col] = plainText[counter];
                         counter++;
                     } else {
                         block[row][col] = 0;
@@ -165,9 +174,8 @@ public class Aes {
             blocks.add(block);
         }
 
-
         int rounds;
-        switch (keyInts.length) {
+        switch (key.length) {
             case 16 -> rounds = 9;
             case 24 -> rounds = 11;
             case 32 -> rounds = 13;
@@ -175,7 +183,7 @@ public class Aes {
         }
 
         blocks.forEach(block -> {
-            List<int[]> roundKeys = expandKey(keyInts);
+            List<int[]> roundKeys = expandKey(key);
             int[][] roundKey = new int[4][4];
             for (int i = 0; i < 4; i++) {
                 roundKey[i] = roundKeys.getFirst();
@@ -205,68 +213,24 @@ public class Aes {
             encryptedBlocks.add(block);
         });
 
-        return hexToString(encryptedBlocks);
-    }
+        int totalSize = encryptedBlocks.size() * 16;
+        int[] result = new int[totalSize];
+        int index = 0;
 
-    static String hexToString(List<int[][]> blocks) {
-        StringBuilder sb = new StringBuilder();
-
-        for (int[][] matrix : blocks) {
-            for (int[] row : matrix) {
-                for(int val: row) {
-                    sb.append(String.format("%02X", val));
-                }
-            }
-        }
-        return sb.toString();
-    }
-
-    static int[] stringToHexArray(String hex) {
-        int[] intArray = new int[hex.length() / 2];
-        for (int i = 0; i < hex.length(); i+=2) {
-            intArray[i/2] = Integer.parseInt(hex.substring(i, i+2), 16);
-        }
-        return intArray;
-    }
-
-    static String toUtf8String(List<int[][]> intArray) {
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-
-        for (int[][] block : intArray) {
-            for (int[] row : block) {
-                for (int val : row) {
-                    System.out.printf("%02X", val);
-                    baos.write(val & 0xFF);
-                }
-            }
-        }
-
-        byte[] rawBytes = baos.toByteArray();
-
-        if (rawBytes.length > 0) {
-            int paddingLength = rawBytes[rawBytes.length - 1] & 0xFF;
-
-            if (paddingLength > 0 && paddingLength <= 16) {
-                boolean validPadding = true;
-                for (int i = rawBytes.length - paddingLength; i < rawBytes.length; i++) {
-                    if ((rawBytes[i] & 0xFF) != paddingLength) {
-                        validPadding = false;
-                        break;
+        for (int[][] block : encryptedBlocks) {
+            for (int row = 0; row < 4; row++) {
+                for (int col = 0; col < 4; col++) {
+                    if (index < result.length) {
+                        result[index++] = block[row][col];
                     }
                 }
-
-                if (validPadding) {
-                    rawBytes = Arrays.copyOfRange(rawBytes, 0, rawBytes.length - paddingLength);
-                }
             }
         }
 
-        try {
-            return new String(rawBytes, StandardCharsets.UTF_8);
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to convert decrypted data to UTF-8 string", e);
-        }
+        return result;
     }
+
+
 
     public static List<int[]> expandKey(int[] key) {
         int numberofKeys;

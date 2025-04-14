@@ -6,9 +6,11 @@
 <?import javafx.scene.control.TextField?>
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.VBox?>
-
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.control.ComboBox?>
+<?import javafx.collections.FXCollections?>
+<?import java.lang.String?>
 <BorderPane xmlns="http://javafx.com/javafx/8.0.171" xmlns:fx="http://javafx.com/fxml/1" fx:controller="pl.jrkm.ui.Controller">
   <top>
     <VBox spacing="10">
@@ -18,7 +20,22 @@
       <Label text="AES Encryption/Decryption Tool" style="-fx-font-size: 16; -fx-font-weight: bold;" />
       <HBox spacing="10" alignment="CENTER_LEFT">
         <Label text="AES Key:" />
-        <TextField fx:id="keyField" prefWidth="600" promptText="Enter your AES key here" />
+        <TextField fx:id="keyField" prefWidth="400" promptText="Enter your AES key here" HBox.hgrow="ALWAYS" />
+        <ComboBox fx:id="keySizeComboBox" prefWidth="100" promptText="Key Size" >
+          <items>
+            <FXCollections fx:factory="observableArrayList">
+              <String fx:value="128 bit"/>
+              <String fx:value="192 bit"/>
+              <String fx:value="256 bit" />
+            </FXCollections>
+          </items>
+        </ComboBox>
+        <Button fx:id="generateKeyButton" text="Generate Key" onAction="#handleGenerateKey" />
+      </HBox>
+      <HBox spacing="10" alignment="CENTER_LEFT">
+        <Label text="Key Options:" />
+        <Button fx:id="loadKeyFromFileButton" text="Load Key from File" onAction="#handleLoadKeyFromFile" />
+        <Button fx:id="saveKeyToFileButton" text="Save Key to File" onAction="#handleSaveKeyToFile" />
       </HBox>
     </VBox>
   </top>
@@ -48,7 +65,15 @@
         <Insets top="10" right="15" bottom="10" left="10" />
       </padding>
       <Label text="Encrypted Text:" />
-      <TextArea fx:id="RightTextArea" prefWidth="250" prefHeight="350" promptText="Encrypted text here" wrapText="true" />
+      <TextArea fx:id="rightTextArea" prefWidth="250" prefHeight="350" promptText="Encrypted text here" wrapText="true" />
     </VBox>
   </right>
+  <bottom>
+    <HBox alignment="CENTER_LEFT" spacing="10">
+      <padding>
+        <Insets top="10" right="15" bottom="15" left="15" />
+      </padding>
+      <Label fx:id="statusLabel" HBox.hgrow="ALWAYS" />
+    </HBox>
+  </bottom>
 </BorderPane>

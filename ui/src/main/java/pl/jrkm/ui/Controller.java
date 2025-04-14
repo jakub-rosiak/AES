@@ -18,17 +18,21 @@ package pl.jrkm.ui;
 
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
+import javafx.scene.control.ComboBox;
+import javafx.scene.control.Label;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.stage.FileChooser;
 import pl.jrkm.encryption.Aes;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileReader;
-import java.io.IOException;
+import java.io.*;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Random;
 
 public class Controller {
 
@@ -39,65 +43,268 @@ public class Controller {
     public TextArea leftTextArea;
 
     @FXML
-    public TextArea RightTextArea;
+    public TextArea rightTextArea;
+
+    @FXML
+    public ComboBox<String> keySizeComboBox;
+
+    @FXML
+    public Label statusLabel;
 ;
     @FXML
     public void handleEncrypt(ActionEvent actionEvent) {
+        statusLabel.setText("Encrypting...");
         String text = leftTextArea.getText();
         String key = keyField.getText();
-        String encrypted = Aes.encrypt(text, key);
-        RightTextArea.setText(encrypted);
+        if (key.length() % 2 != 0) {
+            statusLabel.setText("Invalid Key Length");
+            return;
+        }
+        byte[] plainTextBytes = text.getBytes(StandardCharsets.UTF_8);
+        int[] keyInts = stringToHexArray(key);
+        if (keyInts.length != 16 && keyInts.length != 24 && keyInts.length != 32) {
+            statusLabel.setText("Invalid Key Length");
+            return;
+        }
+        int[] plainTextInts = new int[plainTextBytes.length];
+        for (int i = 0; i < plainTextBytes.length; i++) {
+            plainTextInts[i] = plainTextBytes[i] & 0xFF;
+        }
+        try {
+            int[] encrypted = Aes.encrypt(plainTextInts, keyInts);
+            rightTextArea.setText(hexToString(encrypted));
+            statusLabel.setText("Encryption Successful");
+        } catch (Exception e) {
+            statusLabel.setText("Encryption Failed");
+        }
     }
 
     public void handleDecrypt(ActionEvent actionEvent) {
-        String text = RightTextArea.getText();
+        statusLabel.setText("Decrypting...");
+        String text = rightTextArea.getText();
         String key = keyField.getText();
-        String decrypted = Aes.decrypt(text, key);
-        leftTextArea.setText(decrypted);
+        if (key.length() % 2 != 0) {
+            statusLabel.setText("Invalid Key Length");
+            return;
+        }
+        int[] keyInts = stringToHexArray(key);
+        if (keyInts.length != 16 && keyInts.length != 24 && keyInts.length != 32) {
+            statusLabel.setText("Invalid Key Length");
+            return;
+        }
+        int[] encryptedInts = stringToHexArray(text);
+        try {
+            int[] decrypted = Aes.decrypt(encryptedInts, keyInts);
+            leftTextArea.setText(toUtf8String(decrypted));
+            statusLabel.setText("Decryption Successful");
+        } catch (Exception e) {
+            statusLabel.setText("Decryption Failed");
+        }
     }
 
     public void handleEncryptFile(ActionEvent actionEvent) {
+        statusLabel.setText("Encrypting File...");
         FileChooser fileChooser = new FileChooser();
-        fileChooser.setTitle("Open a text file");
-        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Text Files", "*.txt"));
         File file = fileChooser.showOpenDialog(null);
         if (file != null) {
-            List<String> fileContent = readFile(file);
-            keyField.setText(fileContent.getFirst());
-            leftTextArea.setText(fileContent.getLast());
+            byte[] fileContent = readFile(file);
+            String key = keyField.getText();
+            if (key.length() % 2 != 0) {
+                statusLabel.setText("Invalid Key Length");
+                return;
+            }
+            int[] keyInts = stringToHexArray(key);
+            if (keyInts.length != 16 && keyInts.length != 24 && keyInts.length != 32) {
+                statusLabel.setText("Invalid Key Length");
+                return;
+            }
+
+            int[] fileInts = new int[fileContent.length];
+            for (int i = 0; i < fileContent.length; i++) {
+                fileInts[i] = fileContent[i] & 0xFF;
+            }
+            try {
+                int[] encrypted = Aes.encrypt(fileInts, keyInts);
+
+                String encryptedFileName = file.getName() + ".aes";
+                File encryptedFile = new File(file.getParent(), encryptedFileName);
+                saveBytesToFile(encryptedFile, encrypted);
+                statusLabel.setText("Encryption Successful");
+                return;
+            } catch (Exception e) {
+                statusLabel.setText("Encryption Failed");
+                return;
+            }
         }
-        handleEncrypt(actionEvent);
+        statusLabel.setText("File not selected");
     }
 
-    private List<String> readFile(File file) {
-        StringBuilder content = new StringBuilder();
-        String key = "";
-        try (BufferedReader br = new BufferedReader(new FileReader(file))) {
-            String line = br.readLine();
-            if (line == null) return null;
-            key = line.trim();
-            while ((line = br.readLine()) != null) {
-                content.append(line.trim());
+    private byte[] readFile(File file) {
+        try {
+            return Files.readAllBytes(file.toPath());
+        } catch (IOException e) {
+            e.printStackTrace();
+            return new byte[0];
+        }
+    }
+
+    private void saveBytesToFile(File file, int[] fileContent) {
+        try (BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream(file))) {
+            for (int i : fileContent) {
+                bos.write(i);
             }
+            bos.flush();
         } catch (IOException e) {
             e.printStackTrace();
         }
-        List<String> fileVals = new ArrayList<>();
-        fileVals.add(key);
-        fileVals.add(content.toString());
-        return fileVals;
     }
 
     public void handleDecryptFile(ActionEvent actionEvent) {
+        statusLabel.setText("Decrypting File...");
         FileChooser fileChooser = new FileChooser();
-        fileChooser.setTitle("Open a text file");
+        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Encrypted Files (*.aes)", "*.aes"));
+        File file = fileChooser.showOpenDialog(null);
+        if (file != null) {
+            byte[] fileContent = readFile(file);
+            String key = keyField.getText();
+            if (key.length() % 2 != 0) {
+                statusLabel.setText("Invalid Key Length");
+                return;
+            }
+            int[] keyInts = stringToHexArray(key);
+            if (keyInts.length != 16 && keyInts.length != 24 && keyInts.length != 32) {
+                statusLabel.setText("Invalid Key Length");
+                return;
+            }
+
+            int[] encryptedInts = new int[fileContent.length];
+            for (int i = 0; i < fileContent.length; i++) {
+                encryptedInts[i] = fileContent[i] & 0xFF;
+            }
+
+            try {
+                int[] decrypted = Aes.decrypt(encryptedInts, keyInts);
+
+                String decryptedFileName = file.getName().replace(".aes", "");
+                File decryptedFile = new File(file.getParent(), decryptedFileName);
+                saveBytesToFile(decryptedFile, decrypted);
+                statusLabel.setText("Decryption Successful");
+                return;
+            } catch (Exception e) {
+                statusLabel.setText("Decryption Failed");
+                return;
+            }
+        }
+        statusLabel.setText("File not selected");
+    }
+
+    public void handleGenerateKey(ActionEvent actionEvent) {
+        statusLabel.setText("Generating Key...");
+        String selectedKey = keySizeComboBox.getSelectionModel().getSelectedItem();
+        if (selectedKey != null) {
+            keyField.setText(generateKey(Integer.parseInt(selectedKey.split(" ")[0])));
+            statusLabel.setText("Key Generation Successful");
+            return;
+        }
+        statusLabel.setText("Key Generation Failed");
+    }
+
+    public String generateKey(int length) {
+        int byteLength = length / 8;
+        int[] keyBytes = new int[byteLength];
+        Random random = new Random();
+
+        for (int i = 0; i < byteLength; i++) {
+            keyBytes[i] = random.nextInt(256);
+        }
+
+        return hexToString(keyBytes);
+    }
+
+    public void handleLoadKeyFromFile(ActionEvent actionEvent) {
+        statusLabel.setText("Loading Key...");
+        FileChooser fileChooser = new FileChooser();
         fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Text Files", "*.txt"));
         File file = fileChooser.showOpenDialog(null);
         if (file != null) {
-            List<String> fileContent = readFile(file);
-            keyField.setText(fileContent.getFirst());
-            RightTextArea.setText(fileContent.getLast());
+            try {
+                keyField.setText(Files.readString(Paths.get(file.getAbsolutePath())).trim());
+                statusLabel.setText("Key Loaded Successfully");
+            } catch (IOException e) {
+                statusLabel.setText("Error Loading Key");
+            }
+            return;
         }
-        handleDecrypt(actionEvent);
+        statusLabel.setText("Error Loading Key");
+    }
+
+    public void handleSaveKeyToFile(ActionEvent actionEvent) {
+        statusLabel.setText("Saving Key...");
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Text Files", "*.txt"));
+        File file = fileChooser.showSaveDialog(null);
+        if (file != null) {
+            try (FileWriter writer = new FileWriter(file)) {
+                writer.write(keyField.getText());
+                statusLabel.setText("Key Saved Successfully");
+            } catch (IOException e) {
+                statusLabel.setText("Error Saving Key");
+            }
+            return;
+        }
+        statusLabel.setText("Error Saving Key");
+    }
+
+    static int[] stringToHexArray(String hex) {
+        int[] intArray = new int[hex.length() / 2];
+        for (int i = 0; i < hex.length(); i+=2) {
+            intArray[i/2] = Integer.parseInt(hex. substring(i, i+2), 16);
+        }
+        return intArray;
+    }
+
+    static String hexToString(int[] intArray) {
+        StringBuilder sb = new StringBuilder();
+
+        for (int val: intArray) {
+            sb.append(String.format("%02X", val));
+        }
+
+        return sb.toString();
+    }
+
+    static String toUtf8String(int[] intArray) {
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+
+        for (int val : intArray) {
+            System.out.printf("%02X", val);
+            baos.write(val & 0xFF);
+        }
+
+        byte[] rawBytes = baos.toByteArray();
+
+        if (rawBytes.length > 0) {
+            int paddingLength = rawBytes[rawBytes.length - 1] & 0xFF;
+
+            if (paddingLength > 0 && paddingLength <= 16) {
+                boolean validPadding = true;
+                for (int i = rawBytes.length - paddingLength; i < rawBytes.length; i++) {
+                    if ((rawBytes[i] & 0xFF) != paddingLength) {
+                        validPadding = false;
+                        break;
+                    }
+                }
+
+                if (validPadding) {
+                    rawBytes = Arrays.copyOfRange(rawBytes, 0, rawBytes.length - paddingLength);
+                }
+            }
+        }
+
+        try {
+            return new String(rawBytes, StandardCharsets.UTF_8);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to convert decrypted data to UTF-8 string", e);
+        }
     }
 }
