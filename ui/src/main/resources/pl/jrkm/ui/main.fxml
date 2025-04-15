@@ -46,8 +46,8 @@
       </padding>
       <Button fx:id="encryptButton" text="Encrypt" prefWidth="150" onAction="#handleEncrypt" />
       <Button fx:id="decryptButton" text="Decrypt" prefWidth="150" onAction="#handleDecrypt" />
-      <Button fx:id="encryptFileButton" text="Encrypt from File" prefWidth="150" onAction="#handleEncryptFile" />
-      <Button fx:id="decryptFileButton" text="Decrypt from File" prefWidth="150" onAction="#handleDecryptFile" />
+      <Button fx:id="encryptFileButton" text="Encrypt File" prefWidth="150" onAction="#handleEncryptFile" />
+      <Button fx:id="decryptFileButton" text="Decrypt File" prefWidth="150" onAction="#handleDecryptFile" />
     </VBox>
   </center>
   <left>

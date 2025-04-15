@@ -126,11 +126,13 @@ public class Controller {
             try {
                 int[] encrypted = Aes.encrypt(fileInts, keyInts);
 
-                String encryptedFileName = file.getName() + ".aes";
-                File encryptedFile = new File(file.getParent(), encryptedFileName);
-                saveBytesToFile(encryptedFile, encrypted);
-                statusLabel.setText("Encryption Successful");
-                return;
+                FileChooser fileChooser1 = new FileChooser();
+                File file1 = fileChooser1.showSaveDialog(null);
+                if (file1 != null) {
+                    saveBytesToFile(file1, encrypted);
+                    statusLabel.setText("Encryption Successful");
+                    return;
+                }
             } catch (Exception e) {
                 statusLabel.setText("Encryption Failed");
                 return;
@@ -162,7 +164,6 @@ public class Controller {
     public void handleDecryptFile(ActionEvent actionEvent) {
         statusLabel.setText("Decrypting File...");
         FileChooser fileChooser = new FileChooser();
-        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Encrypted Files (*.aes)", "*.aes"));
         File file = fileChooser.showOpenDialog(null);
         if (file != null) {
             byte[] fileContent = readFile(file);
@@ -185,11 +186,13 @@ public class Controller {
             try {
                 int[] decrypted = Aes.decrypt(encryptedInts, keyInts);
 
-                String decryptedFileName = file.getName().replace(".aes", "");
-                File decryptedFile = new File(file.getParent(), decryptedFileName);
-                saveBytesToFile(decryptedFile, decrypted);
-                statusLabel.setText("Decryption Successful");
-                return;
+                FileChooser fileChooser1 = new FileChooser();
+                File file1 = fileChooser1.showSaveDialog(null);
+                if (file1 != null) {
+                    saveBytesToFile(file1, decrypted);
+                    statusLabel.setText("Decryption Successful");
+                    return;
+                }
             } catch (Exception e) {
                 statusLabel.setText("Decryption Failed");
                 return;

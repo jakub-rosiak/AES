@@ -15,11 +15,7 @@
 //        along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 package pl.jrkm.encryption;
-
-import java.io.ByteArrayOutputStream;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 public class Aes {
